@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My 3D Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    
+    <script src="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css" rel="stylesheet" />
+    
+    <style>
+        body { margin: 0; padding: 0; background-color: #f4f4f4; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+/* Floating Button Container - Moved to Bottom Right */
+.map-controls {
+    position: absolute;
+    top: 10%; /* Positioned above the default MapLibre logo attribute */
+    right: 2.5%;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Mobile-friendly circular icon buttons */
+.control-btn {
+    background-color: rgba(255, 255, 255, 0.95);
+    border: 1px solid #ccc;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    -webkit-tap-highlight-color: transparent;
+    padding: 0;
+}
+
+.control-btn:active {
+    background-color: #e0e0e0;
+}
+    </style>
+</head>
+<body>
+
+<div class="map-controls">
+    <button class="control-btn" onclick="snapToNorth()">🧭</button>
+    <button class="control-btn" id="dimension-btn" onclick="toggle2D3D()">🌐</button>
+</div>
+
+<div id="map"></div>
+
+<script>
+    // State tracking variables
+    let is3DMode = true;
+
+    const map = new maplibregl.Map({
+        container: 'map', 
+        zoom: 12.5,
+        center: [-110.760, 43.771], // Jenny Lake coordinates
+        pitch: 65, 
+        bearing: -45, 
+        maxPitch: 85,
+        style: {
+            version: 8,
+            sources: {
+                'osm-base': {
+                    type: 'raster',
+                    tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                    tileSize: 256,
+                    maxzoom: 19
+                },
+                'terrain-source': {
+                    type: 'raster-dem',
+                    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+                    encoding: 'terrarium',
+                    tileSize: 256,
+                    maxzoom: 14
+                }
+            },
+            layers: [
+                {
+                    id: 'osm-layer',
+                    type: 'raster',
+                    source: 'osm-base'
+                }
+            ],
+            terrain: {
+                source: 'terrain-source',
+                exaggeration: 1.2
+            }
+        }
+    });
+
+
+
+    // Add GPS Location and Compass Tracking
+    map.addControl(
+        new maplibregl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: true // Forces the phone to use GPS, not just Wi-Fi/Cell towers
+            },
+            trackUserLocation: true, // Keeps the camera centered as you move
+            showUserHeading: true    // Activates the compass view cone
+        })
+    );
+
+    // Function 1: Snap North to Up
+    function snapToNorth() {
+        // Smoothly animate the bearing back to 0 (North) over 400 milliseconds
+        map.easeTo({
+            bearing: 0,
+            duration: 400
+        });
+    }
+
+    // Function 2: Toggle between 2D and 3D terrain
+    function toggle2D3D() {
+    const btn = document.getElementById('dimension-btn');
+    
+    if (is3DMode) {
+        map.setTerrain(null);
+        map.easeTo({ pitch: 0, duration: 500 });
+        btn.innerText = "⛰️"; // Just the mountain emoji
+        is3DMode = false;
+    } else {
+        map.setTerrain({ source: 'terrain-source', exaggeration: 1.2 });
+        map.easeTo({ pitch: 65, duration: 500 });
+        btn.innerText = "🌐"; // Just the globe emoji
+        is3DMode = true;
+    }
+}
+</script>
+
+</body>
+</html>
