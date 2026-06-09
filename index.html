@@ -82,14 +82,15 @@
 
     const dimensionBtn = document.getElementById('dimension-btn');
     function toggle2D3D() {
+        is3DMode = !is3DMode;
         if (is3DMode) {
-            map.easeTo({ pitch: 0, duration: 400 });
-            dimensionBtn.innerText = "🗺️";
-            map.setTerrain(null);
-        } else {
             map.easeTo({ pitch: 65, duration: 400 });
             dimensionBtn.innerText = "⛰️";
             map.setTerrain({ source: 'terrain-source', exaggeration: 1.2 });
+        } else {
+            map.easeTo({ pitch: 0, duration: 400 });
+            dimensionBtn.innerText = "🗺️";
+            map.setTerrain(null);
         }
     }
 
