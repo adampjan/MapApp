@@ -77,27 +77,19 @@
         compassBtn.style.transform = `rotate(${-bearing}deg)`;
     });
 
-    const dimensionBtn = document.getElementById('dimension-btn');
-    map.on('pitch', () => {
-        const pitch = map.getPitch();
-        is3DMode = pitch > 0;
-        dimensionBtn.innerText = is3DMode ? "🗺️" : "⛰️";
-        
-        if (!is3DMode && map.getTerrain()) {
-            map.setTerrain(null);
-        } else if (is3DMode && !map.getTerrain()) {
-            map.setTerrain({ source: 'terrain-source', exaggeration: 1.2 });
-        }
-    });
-
     // 4. Button Functions
     function snapToNorth() { map.resetNorth(); }
 
+    const dimensionBtn = document.getElementById('dimension-btn');
     function toggle2D3D() {
         if (is3DMode) {
             map.easeTo({ pitch: 0, duration: 400 });
+            dimensionBtn.innerText = "🗺️";
+            map.setTerrain(null);
         } else {
             map.easeTo({ pitch: 65, duration: 400 });
+            dimensionBtn.innerText = "⛰️";
+            map.setTerrain({ source: 'terrain-source', exaggeration: 1.2 });
         }
     }
 
