@@ -8,12 +8,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MyMap">
     
-    <script src="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css" rel="stylesheet" />
-    
+    <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" rel="stylesheet" />
+    256
     <style>
         body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: -apple-system, sans-serif; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        #map { 
+            position: absolute; 
+            top: 0; 
+            bottom: 0; 
+            width: 100%; 
+            /* This creates the space-like void behind the globe */
+            background-color: #0b0f19; 
+        }
         
         .map-controls {
             position: absolute; bottom: 30px; right: 12px;
@@ -59,6 +66,20 @@
         maxPitch: 85,
         style: {
             version: 8,
+            projection: { type: 'globe' }, 
+            sky: {
+                "sky-color": "#519CE0",      
+                "horizon-color": "#ffffff",  
+                "horizon-fog-blend": 0.0,
+                "fog-color": "rgba(255,255,255,0)",
+                "fog-ground-blend": 0.5,     
+                
+                "atmosphere-blend": ["interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    1, 0.5, 
+                    9, 0.0]
+            },
             sources: {
                 // Hardcoded the OSM and AWS Terrarium URLs here
                 'osm-base': { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256 },
