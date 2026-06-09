@@ -30,98 +30,26 @@
 
         .control-btn:active { background-color: #e0e0e0; }
 
-        /* Modal Styles */
-        .modal {
-            display: none; position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 20;
-            align-items: center; justify-content: center;
-        }
-        .modal-content {
-            background: white; width: 85%; max-height: 80%; border-radius: 12px;
-            padding: 20px; box-sizing: border-box; overflow-y: auto;
-        }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;}
-        .modal-header h2 { margin: 0; font-size: 18px; }
-        .close-btn { font-size: 24px; cursor: pointer; background: none; border: none; }
-        
-        /* Form Styles */
-        label { font-weight: bold; font-size: 14px; display: block; margin-top: 10px; }
-        input, select { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px;}
-        .btn-primary { background: #007aff; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; margin-top: 15px; font-size: 16px; font-weight: bold; cursor: pointer;}
-        
-        /* Layer List Styles */
-        .layer-group { margin-bottom: 15px; }
-        .layer-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
-        .layer-item input { width: auto; margin-right: 10px; transform: scale(1.3); }
+        /* Hide the default MapLibre geolocation button */
+        .maplibregl-ctrl-geolocate { display: none !important; }
+        .maplibregl-ctrl-top-right .maplibregl-ctrl-group:has(.maplibregl-ctrl-geolocate) { display: none !important; }
     </style>
 </head>
 <body>
 
 <div class="map-controls">
-    <button class="control-btn" onclick="openModal('layersModal')">📚</button>
-    <button class="control-btn" onclick="openModal('settingsModal')">⚙️</button>
-    <button class="control-btn" onclick="snapToNorth()">🧭</button>
-    <button class="control-btn" id="dimension-btn" onclick="toggle2D3D()">🌐</button>
+    <button id="compass-btn" class="control-btn" onclick="snapToNorth()">🧭</button>
+    <button id="dimension-btn" class="control-btn" onclick="toggle2D3D()">🗺️</button>
+    <button class="control-btn" onclick="locate()">🌐</button>
 </div>
 
 <div id="map"></div>
 
-<div id="layersModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Select Layers</h2>
-            <button class="close-btn" onclick="closeModal('layersModal')">×</button>
-        </div>
-        <div id="settings">
-            <button class="control-btn" id="dimension-btn" onclick="toggle2D3D()">🌐</button>
-        </div>
-        <div id="layersList"></div>
-    </div>
-</div>
-
-<div id="settingsModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Add New Source</h2>
-            <button class="close-btn" onclick="closeModal('settingsModal')">×</button>
-        </div>
-        <label>Category</label>
-        <select id="sourceCategory">
-            <option value="raster">Raster</option>
-            <option value="terrain">Terrain</option>
-            <option value="vector">Vector</option>
-            <option value="data">Data</option>
-        </select>
-        <label>Source Name</label>
-        <input type="text" id="sourceName" placeholder="e.g., CalTopo Satellite">
-        <label>Tile URL ({z}/{x}/{y})</label>
-        <input type="url" id="sourceUrl" placeholder="https://api.../{z}/{x}/{y}.png">
-        <button class="btn-primary" onclick="saveNewSource()">Save Source</button>
-    </div>
-</div>
-
 <script>
-    // --- DATABASE: Load from Local Storage or create defaults ---
-    const defaultDatabase = {
-        raster: [{ id: 'osm', name: 'OpenStreetMap', url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png' }],
-        terrain: [{ id: 'aws', name: 'AWS Terrarium', url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png' }],
-        vector: [],
-        data: []
-    };
-    
-    let sourceDB = JSON.parse(localStorage.getItem('myMapSources')) || defaultDatabase;
-    
-    // Track what is currently active
-    let activeLayers = JSON.parse(localStorage.getItem('myActiveLayers')) || {
-        raster: sourceDB.raster[0]?.url || '',
-        terrain: sourceDB.terrain[0]?.url || '',
-        vector: '',
-        data: ''
-    };
-
+    // 1. Declare state variables FIRST
     let is3DMode = true;
 
-    // --- MAP INITIALIZATION ---
+    // 2. Initialize Map with hardcoded URLs
     const map = new maplibregl.Map({
         container: 'map', 
         zoom: 12.5,
@@ -132,104 +60,57 @@
         style: {
             version: 8,
             sources: {
-                'osm-base': { type: 'raster', tiles: [activeLayers.raster], tileSize: 256 },
-                'terrain-source': { type: 'raster-dem', tiles: [activeLayers.terrain], encoding: 'terrarium', tileSize: 256 }
+                // Hardcoded the OSM and AWS Terrarium URLs here
+                'osm-base': { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256 },
+                'terrain-source': { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], encoding: 'terrarium', tileSize: 256 }
             },
             layers: [{ id: 'osm-layer', type: 'raster', source: 'osm-base' }],
-            terrain: { source: 'terrain-source', exaggeration: 1.2 }
+            terrain: is3DMode ? { source: 'terrain-source', exaggeration: 1.2 } : null
+        },
+        attributionControl: false
+    });
+
+    // 3. Smart Battery-Saving Event Listeners
+    const compassBtn = document.getElementById('compass-btn');
+    map.on('rotate', () => {
+        const bearing = map.getBearing();
+        compassBtn.style.transform = `rotate(${-bearing}deg)`;
+    });
+
+    const dimensionBtn = document.getElementById('dimension-btn');
+    map.on('pitch', () => {
+        const pitch = map.getPitch();
+        is3DMode = pitch > 0;
+        dimensionBtn.innerText = is3DMode ? "🗺️" : "⛰️";
+        
+        if (!is3DMode && map.getTerrain()) {
+            map.setTerrain(null);
+        } else if (is3DMode && !map.getTerrain()) {
+            map.setTerrain({ source: 'terrain-source', exaggeration: 1.2 });
         }
     });
 
-    //map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }));
-    map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true, showUserHeading: true }));
-
-    // --- MODAL & UI LOGIC ---
-    function openModal(id) { 
-        if(id === 'layersModal') renderLayersList();
-        document.getElementById(id).style.display = 'flex'; 
-    }
-    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-
-    // Save a new source to LocalStorage
-    function saveNewSource() {
-        const category = document.getElementById('sourceCategory').value;
-        const name = document.getElementById('sourceName').value;
-        const url = document.getElementById('sourceUrl').value;
-
-        if (!name || !url) return alert("Please enter a name and URL");
-
-        sourceDB[category].push({ id: Date.now().toString(), name: name, url: url });
-        localStorage.setItem('myMapSources', JSON.stringify(sourceDB));
-        
-        document.getElementById('sourceName').value = '';
-        document.getElementById('sourceUrl').value = '';
-        closeModal('settingsModal');
-        alert("Source saved!");
-    }
-
-    // Render the radio buttons in the Layers Window
-    function renderLayersList() {
-        const container = document.getElementById('layersList');
-        container.innerHTML = ''; // Clear old
-
-        ['raster', 'terrain', 'vector'].forEach(category => {
-            const group = document.createElement('div');
-            group.className = 'layer-group';
-            group.innerHTML = `<h3 style="margin-bottom: 5px; text-transform: capitalize;">${category}</h3>`;
-            
-            sourceDB[category].forEach(source => {
-                const isChecked = activeLayers[category] === source.url ? 'checked' : '';
-                group.innerHTML += `
-                    <div class="layer-item">
-                        <input type="radio" name="${category}" value="${source.url}" ${isChecked} onchange="changeLayer('${category}', '${source.url}')">
-                        <label style="margin: 0;">${source.name}</label>
-                    </div>`;
-            });
-            if(sourceDB[category].length === 0) group.innerHTML += `<p style="font-size: 12px; color: #666;">No sources added yet.</p>`;
-            container.appendChild(group);
-        });
-    }
-
-    // --- HOT-SWAPPING MAP LAYERS ---
-    function changeLayer(category, newUrl) {
-        activeLayers[category] = newUrl;
-        localStorage.setItem('myActiveLayers', JSON.stringify(activeLayers));
-
-        if (category === 'raster') {
-            if (map.getLayer('osm-layer')) map.removeLayer('osm-layer');
-            if (map.getSource('osm-base')) map.removeSource('osm-base');
-            
-            map.addSource('osm-base', { type: 'raster', tiles: [newUrl], tileSize: 256 });
-            map.addLayer({ id: 'osm-layer', type: 'raster', source: 'osm-base' });
-        } 
-        else if (category === 'terrain') {
-            map.setTerrain(null); // Turn off terrain first
-            if (map.getSource('terrain-source')) map.removeSource('terrain-source');
-            
-            map.addSource('terrain-source', { type: 'raster-dem', tiles: [newUrl], encoding: 'terrarium', tileSize: 256 });
-            if (is3DMode) map.setTerrain({ source: 'terrain-source', exaggeration: 1.2 }); // Turn back on
-        }
-        else if (category === 'vector') {
-            alert("Vector styling requires a full style JSON configuration. Direct URL swapping for vector data is a future feature!");
-        }
-    }
-
-    // --- NAVIGATION CONTROLS ---
-    function snapToNorth() { map.easeTo({ bearing: 0, duration: 400 }); }
+    // 4. Button Functions
+    function snapToNorth() { map.resetNorth(); }
 
     function toggle2D3D() {
-        const btn = document.getElementById('dimension-btn');
         if (is3DMode) {
-            map.setTerrain(null);
-            map.easeTo({ pitch: 0, duration: 500 });
-            btn.innerText = "⛰️";
-            is3DMode = false;
+            map.easeTo({ pitch: 0, duration: 400 });
         } else {
-            map.setTerrain({ source: 'terrain-source', exaggeration: 1.2 });
-            map.easeTo({ pitch: 65, duration: 500 });
-            btn.innerText = "🌐";
-            is3DMode = true;
+            map.easeTo({ pitch: 65, duration: 400 });
         }
+    }
+
+    // 5. Geolocation setup
+    const geolocateControl = new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showUserHeading: true
+    });
+    map.addControl(geolocateControl);
+    
+    function locate() {
+        geolocateControl.trigger();
     }
 </script>
 
